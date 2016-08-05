@@ -1,0 +1,13 @@
+base
+sp
+leaflet
+dygraphs
+lubridate
+zoo
+xts
+threejs
+networkD3
+ggplot2
+dplyr
+corrplot
+gplots
