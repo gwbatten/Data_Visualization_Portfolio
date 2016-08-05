@@ -1,0 +1,493 @@
+---
+title: "Data Visualization Portfolio"  
+author: "George W. Batten III"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: journal
+    highlight: zenburn
+    toc: true
+    toc_depth: 5
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=8, fig.height=6, fig.path='Figs/', echo=FALSE, warning=FALSE, message=FALSE, cache = TRUE)
+```
+<br><br><br><br>
+
+INTRODUCTION
+---
+<hr style="height:1px;border:none;color:#333;background-color:#333;" />
+
+Humans think in terms of images and stories, and we have incredible abilities to find patterns in images.  Thus, I am energetically drawn towards data visualizations - they are a powerful means of distilling large data sets and communicating the stories drawn from data.  
+<br />
+Following are examples of visualizations I created.  My tool-of-choice is R, but in the processes of any data analysis and visualization, I may use other tools such as Excel, QGIS, SQL, HTML, or CSS. 
+<br />
+
+This portfolio is a living document.  Please check back from time to time and see what I've added.
+<br><br><br>
+<br><br><br>
+
+INTERACTIVE MAP
+--- 
+<hr style="height:1px;border:none;color:#333;background-color:#333;" />
+
+Maps of all kinds are a long-enduring passion of mine.  I get deep satisfaction creating interactive maps, where spreadsheets of numbers get transformed into beautiful, understandable visual patterns.  I use the JavaScript library _Leaflet_, via R, to create interactive maps.  In the following map, you can zoom in and out, scroll in any direction, select from several background maps, and choose the layers you wish to view.  Controls are hidden in the "stacked layers" icon at the top right of the map.  Hover over the icon to see options.  (To make a layer the top one, click it off and then on).  Clicking on each data point will produce a popup with additional information.  
+<br />
+The following map shows all of the forest fires in Oregon from 2013 to 2015.  You can explore the geographic distribution of major causes of forest fires by showing individual layers.  For example, it is easy to see that lightning-caused fires are more prevalent in the southern and eastern parts of Oregon.  I've included a variety of base maps to use depending on the question you are exploring.  Using the "Terrain" map shows how difficult some fires must have been to fight because of steep, rugged slopes.   
+
+
+```{r, interactive_map, echo=FALSE, cache=FALSE}
+# import Oregon forest fire data
+dat <- read.csv("./data/ForestFiresOregon/FireList_edit.csv",
+                stringsAsFactors = FALSE)
+# convert to lat/long to DMS
+library(sp)
+dat$Latitude <- as.numeric(char2dms(dat$Latitude, 
+                                    chd = "°", chm = "'", chs = "\""))
+dat$Longitude <- as.numeric(char2dms(dat$Longitude, 
+                                     chd = "°", chm = "'", chs = "\""))
+dat <- dat[complete.cases(dat), ]
+names(dat)[7:8] <- c("lat", "long")
+
+
+# create fire SpatialPointsDataFrame
+coords <- dat[, 7:8]
+geodat <- SpatialPointsDataFrame(coords, dat)
+
+# create map
+library(leaflet)
+popup <- paste0("<strong>Year: </strong>", geodat$Fire.Year,
+                "<br /><strong>Fire Name: </strong>", geodat$Fire.Name)
+
+fillOpacity <- 1
+
+map_colors <- c("#e41a1c", "#377eb8", "#4daf4a", "#984ea3", 
+                "#ff7f00", "#ffd700")
+map_names <- c("All Fires", "Lightning", "Equipment Use", "Debris Burning",
+               "Smoking", "Arson")
+        
+lightning <- dat[dat$General.Cause == "Lightning", ]
+coords <- lightning[, 7:8]
+lightning <- SpatialPointsDataFrame(coords, lightning)
+
+equipment <- dat[dat$General.Cause == "Equipment Use", ]
+coords <- equipment[, 7:8]
+equipment <- SpatialPointsDataFrame(coords, equipment)
+
+debris_burning <- dat[dat$General.Cause == "Debris Burning", ]
+coords <- debris_burning[, 7:8]
+debris_burning <- SpatialPointsDataFrame(coords, debris_burning)
+
+smoking <- dat[dat$General.Cause == "Smoking", ]
+coords <- smoking[, 7:8]
+smoking <- SpatialPointsDataFrame(coords, smoking)
+
+arson <- dat[dat$General.Cause == "Arson", ]
+coords <- arson[, 7:8]
+arson <- SpatialPointsDataFrame(coords, arson)
+
+m <- leaflet(data = geodat) %>%
+        addTiles(group = "OpenStreetMap") %>%
+        addProviderTiles("Stamen.Toner", group = "Toner") %>%
+        addProviderTiles("Stamen.TonerLite", group = "Toner Lite") %>%  
+        addProviderTiles("CartoDB.Positron", group = "Positron") %>%
+        addProviderTiles("CartoDB.DarkMatter", group = "Dark Matter") %>%
+        addProviderTiles("Stamen.Terrain", group = "Terrain") %>%
+        
+        addCircles(lng = ~long, lat = ~lat, radius = 2,  
+                   fillColor = "#e41a1c", fillOpacity = fillOpacity,
+                   color = "#e41a1c", group = "All Fires",
+                   popup = popup) %>%
+        
+        addCircles(data = lightning, lng = ~long, lat = ~lat, 
+                             radius = 2,  
+                   fillColor = "#377eb8", fillOpacity = fillOpacity,
+                   color = "#377eb8", group = "Lightning",
+                   popup = popup) %>%
+        
+        addCircles(data = equipment, lng = ~long, lat = ~lat, 
+                   radius = 2,  
+                   fillColor = "#4daf4a", fillOpacity = fillOpacity,
+                   color = "#4daf4a", group = "Equipment Use",
+                   popup = popup) %>%
+        
+        addCircles(data = debris_burning, lng = ~long, lat = ~lat, 
+                   radius = 2,  
+                   fillColor = "#984ea3", fillOpacity = fillOpacity,
+                   color = "#984ea3", group = "Debris Burning",
+                   popup = popup) %>%
+        
+        addCircles(data = smoking, lng = ~long, lat = ~lat, 
+                   radius = 2,  
+                   fillColor = "#ff7f00", fillOpacity = fillOpacity,
+                   color = "#ff7f00", group = "Smoking",
+                   popup = popup) %>%
+        
+        addCircles(data = arson, lng = ~long, lat = ~lat, 
+                   radius = 2,  
+                   fillColor = "#ffd700", fillOpacity = fillOpacity,
+                   color = "#ffd700",  group = "Arson",
+                   popup = popup) %>%
+
+        addLegend("bottomright", colors = map_colors, labels = map_names,
+                  title = "Cause of Fire",
+                  opacity = 0.8 ) %>%
+        
+        addLayersControl(
+                baseGroups = c("OpenStreetMap", "Toner", "Toner Lite", 
+                               "Positron", "Dark Matter", "Terrain"),
+                overlayGroups = c("All Fires", "Lightning", "Equipment Use",
+                                  "Debris Burning", "Smoking", "Arson"),
+                options = layersControlOptions(collapsed = TRUE))
+m
+```
+
+<br><br><br>
+<br><br><br>
+
+GRAPHS
+---
+<hr style="height:1px;border:none;color:#333;background-color:#333;" />
+
+###Interactive Time-series Graph
+Time-series graphs can show cyclical trends or changes after significant events.  The following graph shows the daily number of births in Quebec from 1977 to 1990. The graph includes a range selector beneath it which allows you to zoom in on the time range of interest.  Simply move the sliders on the left and right.
+
+```{r, interactive_timeseries, fig.width=8, fig.height=4, cache=FALSE, echo=FALSE}
+library(dygraphs)
+library(lubridate)
+library(xts)
+
+births <- read.csv("./data/graphs/number-of-daily-births-in-quebec.csv", 
+                   stringsAsFactors = TRUE)
+
+births$Date <- mdy(births$Date)
+
+births_ts <- xts(births, births$Date)
+
+dygraph(births_ts, main = "Number of Daily Births in Quebec (1977-1999)", 
+        ylab = "Number of Births") %>%
+        dyRangeSelector() %>%
+        dyShading(from = "1977-01-01", to = "1977-12-31") %>% 
+        dyShading(from = "1979-01-01", to = "1979-12-31") %>%
+        dyShading(from = "1981-01-01", to = "1981-12-31") %>% 
+        dyShading(from = "1983-01-01", to = "1983-12-31") %>%
+        dyShading(from = "1985-01-01", to = "1985-12-31") %>% 
+        dyShading(from = "1987-01-01", to = "1987-12-31") %>%
+        dyShading(from = "1989-01-01", to = "1989-12-31")
+```
+<br><br><br>
+<br><br><br>
+
+###Moveable 3-D Graph
+Adding a third variable to a graph is often helpful, and while static 3-D graphs are possible, being able to rotate the graph to view it from any angle is superior.  Below is a 3-D plot of Fisher's classic iris data set (collected by Edgar Anderson) which includes sepal and petal measurements of three species.  I plotted sepal length, sepal width, and petal length on the X, Y, and Z axes, respectively, and color coded the species ( _Setosa_ = light blue, _Versicolor_ = blue, and _Virginica_ = light green).  To rotate, click anywhere on the graph and drag in any direction.  Zoom using your mouse scroll wheel. 
+
+```{r, 3d_graph, cache=FALSE, echo=FALSE, fig.width=10, fig.height=8}
+library(threejs)
+data(iris)
+z <- iris[, 1]
+x <- iris[, 2]
+y <- iris[, 3]
+
+paint <- c(rep("#a6cee3", 50), rep("#1f78b4", 50), rep("#b2df8a", 50))
+labels <- c(rep("setosa", 50), rep("versicolor", 50), rep("virginica", 50))
+scatterplot3js(x,y,z, color = paint, size = 1.5,
+               labels = labels, renderer = "canvas")
+```
+<br><br><br>
+<br><br><br>
+
+###Network Graph
+
+Many systems, whether biological, physical, or social are best represented as a network where features such as connectivity, complexity, and distance can illuminate many questions.  The following graph shows frequent associations between 62 dolphins off the coast of New Zealand (Lusseau et al. 2003). Hover over a node to see the name (or designation) of the dolphin, and drag nodes around to explore the network. Male dolphins are dark blue, female light blue, and those with unknown gender are orange.
+
+```{r social_network, echo=FALSE, cache=FALSE}
+library(networkD3)
+nod <- read.csv("./data/Network Graph/dolphins_nodes.csv", 
+                stringsAsFactors = FALSE)
+nod <- nod[, 2:3]
+
+edg <- read.csv("./data/Network Graph/dolphins_edges.csv", 
+                stringsAsFactors = FALSE)
+edg <- edg[, c(1:2, 6)]
+
+forceNetwork(Links = edg, Nodes = nod,
+             Source = "Source", Target = "Target", Value = "Weight",
+             NodeID = "Label", Group = "sex",
+             opacity = 1, charge = -300,
+             fontsize = 10, height = 650, width = 1000)
+
+```
+<br><br><br>
+<br><br><br>
+
+###Scatter Plots
+Static graphs are the bread and butter of data visualizations.  A simple scatter plot of 2 variables, say tree height vs tree diameter, makes the relationship concrete, and allows us to easily detect interesting outliers (e.g. the rather stout baobab tree).  
+<br />
+When I worked for the Pacific Northwest National Laboratory, our research focused on determining the number of young salmon that survived going through dams on the Columbia River.  We implanted tiny, acoustic transmitters in a sample (50,000!) of migrating fish, and listened for their unique codes as they approached the dams.  The sensors we used (hydrophones), were submerged in the water on the upstream face of the dams.  The problem was that dams make a lot of noise, and trying to hear an acoustic signal sent at very low power was difficult at useful distances.  We constructed shields (baffles) that blocked noise coming from or reflected off of the dams.  To test the baffles, two hydrophones were lowered in the water, one with a baffle, the other without, and a transmitter, mounted to a boat, was moved toward and away from the dam in a series of transects. The signal-to-noise ratio (SNR) was recorded each time a code was heard.  SNR is a good proxy for distance: higher SNRs imply the fish is close by.  
+<br />  
+The following scatter plots show that baffles are effective at blocking noise, allowing detection of distant signals.  The top plot shows all detections and their SNR levels for the baffled and non-baffled hydrophones compared with the distance the "fish" was from the hydrophone. The second plot shows all detections and their distance from each hydrophone.
+
+
+```{r baffle_scatterplot, echo=FALSE}
+library(ggplot2)
+library(dplyr)
+# Hydrophone Data Import, Ordering, Time Difference, and Filtering -------------
+#import data
+P312 <- read.csv("./data/Baffle Study/BON_P3_CH12_20130419_filtered_merged.csv")
+P334 <- read.csv("./data/Baffle Study/BON_P3_CH34_20130419_filtered_merged.csv")
+
+P312 <- P312[ , c(3,5,6,8,10,11)]
+P334 <- P334[ , c(3,5,6,8,10,11)]
+
+# re-name variables
+names(P312) <- c("name", "time", "code", "snr", "margin", "channel")
+names(P334) <- c("name", "time", "code", "snr", "margin", "channel")
+
+# order dataframes via hydrophone name and tag code
+P312  <- P312[order(P312[,1], P312[,3]),]
+P334  <- P334[order(P334[,1], P334[,3]),]
+
+# calculate time difference between signals
+timediff <- function(HpData, PingRate){
+        x <- rep(PingRate, length(HpData[,1])) 
+        for(i in 2:(length(HpData[,1]))) {
+                if(HpData[i,3] != HpData[(i-1),3]){                    
+                        x[i] <- PingRate
+                }
+                else {
+                        x[i] <- HpData[(i),2] - HpData[i-1,2]                
+                }                                                      
+        }
+        HpData$diff <- x
+}
+
+PingRate <- 2.0
+P312$diff <- timediff(P312, PingRate)
+P334$diff <- timediff(P334, PingRate)
+
+
+#use time difference to filter out multi-path; filter for time of transects
+P312 <- subset(P312, P312[,7] > 0.1565)                   
+P312 <- P312[52560 < P312$time & P312$time < 55080,]
+
+P334 <- subset(P334, P334[,7] > 0.1565)
+P334 <- P334[52560 < P334$time & P334$time < 55080,]
+
+totalData <- rbind(P312,P334)
+
+#round times in hydrophone data frame
+P312$time <- round(P312$time)
+P334$time <- round(P334$time)
+
+
+#rename time to gpstime
+colnames(P312)[2] <- "gpstime"
+colnames(P334)[2] <- "gpstime"
+
+
+# GPS Data Import and Time Conversions ------------------------------------
+
+#import data
+gps <- read.csv("./data/Baffle Study/gps_20130419.csv")
+
+#convert time to seconds from midnight
+gps$gpstime <- sapply(strsplit(as.character(gps$gpstime), ":"),
+                      function(x) {
+                              x <- as.numeric(x)
+                              x[1]*3600 + x[2]*60 + x[3]
+                      })
+
+#filter for time of transects
+gps <- gps[52560 < gps$gpstime & gps$gpstime < 55080 ,]
+
+dat <- left_join(gps, P312, by = "gpstime")
+dat <- dat[, c(1:3, 5:9)]
+temp <- dat
+temp$code <- "none"
+
+# the following "snr" is really distance in meters; bad form, but it was
+# the only way I could figure out how to plot it with true snr data in
+# facets
+temp$snr <- temp$easting - 2387702 
+temp$name <- "boat"
+dat <- dat[complete.cases(dat), ]
+dat <- rbind(dat, temp)
+
+# to make the scales the same, add a non-baffled point and make its snr
+# equal to max snr for baffled points; cover up this fake point when plotting
+dat[4542, ] <- dat[103, ]
+dat[4542, "snr"] <- max(dat[dat$name == "P18SB", "snr"])
+
+# name facets
+levels(dat$name)[levels(dat$name) == "P18SB"] <- "Baffled"
+levels(dat$name)[levels(dat$name) == "P18SN"] <- "Non-Baffled"
+levels(dat$name)[levels(dat$name) == "boat"] <- "Distance to 'Fish'"
+
+p <- ggplot(dat, aes(x=gpstime, y=(snr))) + geom_point(alpha=0.7, 
+                                                       cex=1.5)         
+p + facet_grid(name ~., scales = "free_y") + 
+        ggtitle("Hydrophone Sensitivity Between \nBaffled and Non-Baffled Hydrophones") +
+        xlab("Time (seconds from midnight)") + ylab("Distance (m)                         SNR                               SNR      ") +
+        theme(strip.text = element_text(face="bold", size=rel(0.8)), 
+              strip.background = element_rect(fill="grey90", 
+                                              colour="black", size=1), 
+              text = element_text(family = "serif"),
+              panel.background = element_rect(fill = "aliceblue"),
+              panel.grid.minor = element_blank(),
+              panel.grid.major = element_line(colour = "grey80"),
+              axis.text.x = element_text(size=rel(1.1), colour = "black"),
+              axis.text.y = element_text(size=rel(1.1), colour = "black"),
+              axis.title.x = element_text(size=rel(1), colour = "black", face = "bold"),
+              axis.title.y = element_text(size=rel(1), colour = "black", face = "bold"),
+              plot.title = element_text(face = "bold", size = rel(1.25))) +
+         annotate("pointrange", x = 52594, y = 21.85, ymin = 21.85, ymax = 21.85,
+              colour = "aliceblue", size = 0.4)
+```
+
+<br><br><br>
+<br><br><br>
+
+```{r scatterplot2, echo=FALSE}
+# Calculate Euclidean Distances from Hydrophones to Tags ------------------
+
+#import hydrophone locations
+pts <- read.csv("./data/Baffle Study/hphone_locations_20130419.csv")
+
+#calculate difference in elevation between each hydrophone and the average tag elevation
+pts$depthdiff <- 21.98 - pts[,4]                                #21.98 m = average tag elevation; forebay elevation =
+#24.96 m; average tag distance below boat = 2.977 m
+#add distance columns for each hydrophone to gps dataframe
+gps[c("distP312", "distP334")] <- NA
+
+#calculate line-of-site distance from the boat to the hydrophone pair taking depth into consideration
+gpsnames <- list("312", "334")
+subnames <- list(P312, P334)
+for(i in 1:length(pts[,1])){  
+        gps[,i+6] <- sqrt((gps$easting-pts[i,2])^2+(gps$northing-pts[i,3])^2 + (pts[i,5])^2) #line-of-sight distance
+        gpsnames[[i]] <- merge(subnames[[i]],gps)
+}
+
+gpsP312 <- gpsnames[[1]][,-14]                     #rename dataframes and select appropriate distance column
+gpsP334 <- gpsnames[[2]][,-13]
+
+colnames(gpsP312)[13] <- "distance"
+colnames(gpsP334)[13] <- "distance"
+
+#plot distance vs baffled/non-baffled on same graph
+#The following plots show a nice comparison between baff/non-baff over distance - easy to see the advantage 
+#having a baffle on the hydrophone in noisey conditions
+
+
+p <- ggplot(gpsP312, aes(x=distance, y=name)) + 
+        geom_point(position=position_jitter(), color = "white", alpha = 0.8) 
+
+p + ggtitle("Comparing Fish Detections\nBetween Shielded and Non-Shielded Sensors") +
+        xlab("Distance of Fish from Receiver (meters)") + 
+        ylab("Fish Detections") + 
+        theme(axis.title.x=element_text(size=14, face='bold'), 
+              axis.title.x = element_text(size=rel(1), colour = "black", 
+                                          face = "bold"),
+        axis.line = element_line(color="black"),
+        text = element_text(family = "serif"),
+        title = element_text(size = 16, face='bold'),             
+        axis.text.x = element_text(size=rel(1.25), colour = "black"),
+        axis.text.y = element_text(size=rel(1.25), colour = "black"),
+        plot.title = element_text(face = "bold", size = rel(1)),
+        panel.background = element_rect(fill = "black"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(colour = "grey80")) +
+        scale_y_discrete(breaks=c("P18SN", "P18SB"), labels=c("Not Baffled", "Baffled"))
+```
+<br><br><br>
+<br><br><br>
+
+###Correlation Matrix
+Multicollinearity (two or more highly correlated variables) can cause problems when building multiple regression models.  An early step in data exploration is creating a correlation matrix.  Following is one way to visualize such a matrix, and quickly spot variables that are highly correlated.  The more highly correlated two variables are, the more oblong the shape where the two intersect.  If the shape is blue, they are positively correlated, if they are red, they are negatively correlated.  Two variables with no correlation would show up as a grey circle.  
+<br />
+The data set used comes from a paper by J. W. Longley (1967) which demonstrates highly correlated macroeconomic indicators.
+
+```{r correlation_matrix, echo=FALSE}
+library(corrplot)
+library(gplots)
+names(longley) <- c("GNP.def", "GNP", "Jobless", "Military", "Population", 
+                    "Year", "Employed")
+corrplot.mixed(corr=cor(longley, use = "complete.obs"),
+                        upper = "ellipse", t1.pos = "lt", diag = "n",
+                        col = colorpanel(50, "red", "gray60", "blue4"))
+
+```
+<br><br><br>
+<br><br><br>
+
+###Heat Map
+Heat maps are a useful way to represent matrix data, facilitating the discovery of clusters or outliers.  The following heatmap shows daily weather-related measurements taken in Portland, Oregon November 2011. Hover over a cell to get a popup showing the row, column, and value.
+
+```{r heatmap, echo=FALSE, cache=FALSE}
+library(gplots)
+library(RColorBrewer)
+weather <- read.csv("./data/Heatmap/QCLCD_PDX_weather_edit.csv",
+                    stringsAsFactor = FALSE)
+library(lubridate)
+weather$YearMonthDay <- day(ymd(weather$YearMonthDay))
+names(weather)[1] <- "Day"
+
+library(d3heatmap)
+d3heatmap(weather[, -1], scale="column", colors="YlOrRd", cexRow = 1,
+          show_grid = TRUE, Rowv = FALSE)
+```
+<br><br><br>
+<br><br><br>
+
+
+
+TABLES
+---
+<hr style="height:1px;border:none;color:#333;background-color:#333;" />
+
+While using visualization techniques usually makes the process of finding trends easier, sometimes it is necessary to present a table.  The following table is fairly large (2460 rows, 14 columns), and presenting it in a web page requires some "folding" technique.  Here you can select the number of rows you want to see, order by clicking on the arrows at the top of the appropriate column, or search for a particular subset.  Try selecting one of the "General.Causes", e.g. "Debris Burning", and it will filter the table to just those instances.  The total number of rows remaining after filtering are shown at the bottom of the table.
+
+```{r interactive_table, echo=FALSE, cache=FALSE}
+library(DT)
+# import Oregon forest fire data
+dat <- read.csv("./data/Table_fires/FireList_edit.csv",
+                stringsAsFactors = FALSE)
+# convert to lat/long to DMS
+library(sp)
+dat$Latitude <- as.numeric(char2dms(dat$Latitude, 
+                                    chd = "°", chm = "'", chs = "\""))
+dat$Longitude <- as.numeric(char2dms(dat$Longitude, 
+                                     chd = "°", chm = "'", chs = "\""))
+dat <- dat[complete.cases(dat), ]
+dat$Latitude <- round(dat$Latitude, 2)
+dat$Longitude <- round(dat$Longitude, 2)
+
+datatable(dat[, -c(2, 4, 6, 9, 13)], options = list(pageLength = 5), 
+          rownames = FALSE, caption = "Oregon Forest Fires 2013-2015")
+```
+<br><br><br>
+<br><br><br>
+
+INTERACTIVE APPLICATIONS
+---
+<hr style="height:1px;border:none;color:#333;background-color:#333;" />
+
+###Shiny App
+Sometimes we want more interactivity than we get on a single, interactive graph.  That's where full-blown applications come in.  I build applications with Shiny which brings to bare all the tools and packages available in R.  To see an example of one of my Shiny apps,  go here: <a href="https://gwbatten.shinyapps.io/engineDisplacement" target="_blank">Shiny App</a>
+
+
+###Slides
+Presentations can be built in R with "R Presentations" or "Slidify", which allow you to author HTML5 presentations.  One advantage of these packages is that R code is embedded in the presentation, so any changes in code are easily re-rendered.  For one of my examples, go here: <a href="https://rpubs.com/gwbatten/DataScienceCapstonePresentation" target="_blank">Data Science Capstone Presentation</a>
+<br><br><br>
+<br><br><br>
+
+BIBLIOGRAPHY
+---
+<hr style="height:1px;border:none;color:#333;background-color:#333;" />
+
+Anderson, Edgar, _The irises of the Gaspe Peninsula_, Bulletin of the American Iris Society, 59, 2--5 (1935).
+
+Longley, J. W. _An appraisal of least-squares programs from the point of view of the user_. Journal of the American Statistical Association 62, 819--841 (1967).
+
+Lusseau, D., K. Schneider, O. J. Boisseau, P. Haase, E. Slooten, and S. M. Dawson, _The bottlenose dolphin community of Doubtful Sound features a large proportion of long-lasting associations_, Behavioral Ecology and Sociobiology 54, 396--405 (2003).
+
